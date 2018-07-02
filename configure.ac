@@ -1,5 +1,5 @@
 AC_PREREQ(2.64)
-AC_INIT([futurerestore], [1.0], [https://github.com/encounter/futurerestore/issues],, [https://github.com/encounter/futurerestore])
+AC_INIT([futurerestore], [1.0], [https://github.com/xybp888/futurerestore/issues],, [https://github.com/xybp888/futurerestore])
 
 AC_CANONICAL_SYSTEM
 
