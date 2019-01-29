@@ -143,12 +143,12 @@ size_t asn1GetPrivateTagnum(t_asn1Tag *tag, size_t *sizebytes){
     t_asn1ElemLen taglen = asn1Len((char*)++tag);
     taglen.sizeBytes-=1;
     if (taglen.sizeBytes != 4){
-        /* 
+        /*
          WARNING: seems like apple's private tag is always 4 bytes long
-         i first assumed 0x84 can be parsed as long size with 4 bytes, 
+         i first assumed 0x84 can be parsed as long size with 4 bytes,
          but 0x86 also seems to be 4 bytes size even if one would assume it means 6 bytes size.
          This opens the question what the 4 or 6 nibble means.
-        */
+         */
         taglen.sizeBytes = 4;
     }
     size_t tagname =0;
@@ -423,9 +423,9 @@ char *asn1AppendToTag(char *buf, char *toappend){
 
 char *makeIM4RWithNonce(char *nonce){
     char template[] = {0xA1, 0x23, 0x30, 0x21, 0x16, 0x04, 0x49, 0x4D,
-                       0x34, 0x52, 0x31, 0x19, 0xFF, 0x84, 0x92, 0xB9,
-                       0x86, 0x4E, 0x12, 0x30, 0x10, 0x16, 0x04, 0x42,
-                       0x4E, 0x43, 0x4E, 0x04, 0x08};
+        0x34, 0x52, 0x31, 0x19, 0xFF, 0x84, 0x92, 0xB9,
+        0x86, 0x4E, 0x12, 0x30, 0x10, 0x16, 0x04, 0x42,
+        0x4E, 0x43, 0x4E, 0x04, 0x08};
     char *ret = malloc(sizeof(template)+8);
     strncpy(ret, template,sizeof(template));
     strncpy(ret+sizeof(template), nonce, 8);
@@ -758,7 +758,7 @@ char *getSHA1ofSqeuence(char * buf){
 int hasBuildidentityElementWithHash(plist_t identity, char *hash, uint64_t hashSize){
 #define reterror(a ...){rt=0;error(a);goto error;}
 #define skipelem(e) if (strcmp(key, e) == 0) {/*warning("skipping element=%s\n",key);*/goto skip;} //seems to work as it is, we don't need to see that warning anymore
-
+    
     int rt = 0;
     plist_dict_iter dictIterator = NULL;
     
@@ -780,7 +780,10 @@ int hasBuildidentityElementWithHash(plist_t identity, char *hash, uint64_t hashS
         skipelem("SE,Firmware")
         skipelem("SE,MigrationOS")
         skipelem("SE,OS")
+//        fix
         skipelem("SE,UpdatePayload")
+        skipelem("eUICC,Gold")
+        skipelem("eUICC,Main")
         
         plist_t digest = plist_dict_get_item(node, "Digest");
         if (!digest || plist_get_node_type(digest) != PLIST_DATA)
@@ -825,15 +828,17 @@ plist_t findAnyBuildidentityForFilehash(plist_t identities, char *hash, uint64_t
         plist_dict_next_item(manifest, dictIterator, &key, &node);
         do {
             skipelem("BasebandFirmware")
-			skipelem("ftap")
-			skipelem("ftsp")
-			skipelem("rfta")
-			skipelem("rfts")
-			skipelem("SE,Bootloader")
-			skipelem("SE,Firmware")
-			skipelem("SE,MigrationOS")
-			skipelem("SE,OS")
-			skipelem("SE,UpdatePayload")
+            skipelem("ftap")
+            skipelem("ftsp")
+            skipelem("rfta")
+            skipelem("rfts")
+            skipelem("SE,UpdatePayload")
+            skipelem("SE,Bootloader")
+            skipelem("SE,Firmware")
+            skipelem("SE,MigrationOS")
+            skipelem("SE,OS")
+            skipelem("eUICC,Gold")
+        		skipelem("eUICC,Main")
             
             plist_t digest = plist_dict_get_item(node, "Digest");
             if (!digest || plist_get_node_type(digest) != PLIST_DATA)
@@ -929,17 +934,23 @@ error:
 
 int im4m_buildidentity_check_cb(char elemNameStr[4], char *dgstData, size_t dgstDataLen, struct {plist_t rt; plist_t identities;} *state){
 #define skipelem(e) if (strncmp(e, elemNameStr,4) == 0) return 0
-		skipelem("BasebandFirmware");
-		skipelem("ftap");
-		skipelem("ftsp");
-		skipelem("rfta");
-		skipelem("rfts");
-		skipelem("SE,Bootloader");
-		skipelem("SE,Firmware");
-		skipelem("SE,MigrationOS");
-		skipelem("SE,OS");
-		skipelem("SE,UpdatePayload");
-    
+    /* skipelem("ftsp");
+    skipelem("ftap");
+    skipelem("rfta");
+    skipelem("rfts");
+    //    error(">>>> %.4s\n", elemNameStr); */
+	skipelem("BasebandFirmware");
+    skipelem("ftap");
+    skipelem("ftsp");
+    skipelem("rfta");
+    skipelem("rfts");
+    skipelem("SE,UpdatePayload");
+    skipelem("SE,Bootloader");
+    skipelem("SE,Firmware");
+    skipelem("SE,MigrationOS");
+    skipelem("SE,OS");
+    skipelem("eUICC,Gold");
+    skipelem("eUICC,Main");
     if (state->rt){
         if (!hasBuildidentityElementWithHash(state->rt, dgstData, dgstDataLen)){
             //remove identity we are not looking for and start comparing all hashes again
@@ -960,7 +971,7 @@ int im4m_buildidentity_check_cb(char elemNameStr[4], char *dgstData, size_t dgst
 plist_t getBuildIdentityForIM4M(const char *buf, const plist_t buildmanifest){
 #define reterror(a ...){state.rt=NULL;error(a);goto error;}
 #define skipelem(e) if (strncmp(elemNameStr, e, 4) == 0) {/*warning("skipping element=%s\n",e);*/continue;} //seems to work as it is, we don't need to see that warning anymore
-
+    
     plist_t manifest = plist_copy(buildmanifest);
     
     struct {plist_t rt; plist_t identities;} state;
@@ -984,7 +995,7 @@ plist_t getBuildIdentityForIM4M(const char *buf, const plist_t buildmanifest){
     
     for (int i=0; i<plist_array_get_size(origIdentities); i++) {
         plist_t curr = plist_array_get_item(origIdentities, i);
-    
+        
         plist_t cinfo = plist_dict_get_item(curr, "Info");
         plist_t cdevclass = plist_dict_get_item(cinfo, "DeviceClass");
         plist_t cresbeh = plist_dict_get_item(cinfo, "RestoreBehavior");
@@ -1039,7 +1050,7 @@ int verify_signature(char *data, char *sig, char *certificate, int useSHA384){
     t_asn1ElemLen dataSize = asn1Len(data+1);
     t_asn1ElemLen sigSize = asn1Len(sig+1);
     t_asn1ElemLen certSize = asn1Len(certificate+1);
-
+    
     X509 *cert = d2i_X509(NULL, (const unsigned char**)&certificate, certSize.dataLen + certSize.sizeBytes + 1);
     EVP_PKEY *certpubkey = X509_get_pubkey(cert);
     
@@ -1064,7 +1075,7 @@ int find_dgst_cb(char elemNameStr[4], char *dgstData, size_t dgstDataLen, void *
 int verifyIM4MSignature(const char *buf){
     int err = 0;
 #define reterror(code,a ...){error(a);err=code;goto error;}
- 
+    
     retassure(-1,asn1ElementsInObject(buf) == 5);
     char *im4m = asn1ElementAtIndex(buf, 2);
     char *sig = asn1ElementAtIndex(buf, 3);
@@ -1073,7 +1084,7 @@ int verifyIM4MSignature(const char *buf){
     int elems = 0;
     retassure(-2, (elems = asn1ElementsInObject(certs)) >=1); //iPhone7 has 1 cert, while pre-iPhone7 have 2 certs
     
-//    char *bootAuthority = asn1ElementAtIndex(certs, 0); //does not exist on iPhone7
+    //    char *bootAuthority = asn1ElementAtIndex(certs, 0); //does not exist on iPhone7
     char *tssAuthority = asn1ElementAtIndex(certs, elems-1); //is always last item
     
     err = verify_signature(im4m, sig, tssAuthority, elems < 2); //use SHA384 if elems is 2 otherwise use SHA1
@@ -1095,7 +1106,7 @@ char *getBNCHFromIM4M(const char* im4m, size_t *nonceSize){
     char *manb = NULL;
     char *manp = NULL;
     char *certs = NULL;
-
+    
     if (!im4m) reterror("Got empty IM4M\n");
     
     if (asn1ElementsInObject(im4m) != 5) {
@@ -1131,6 +1142,8 @@ char *getBNCHFromIM4M(const char* im4m, size_t *nonceSize){
     bnchSize = asn1Len(nonceOctet).dataLen;
     // iPhone 7 and above use 32 byte nonce
     if (bnchSize != (asn1ElementsInObject(certs) == 1 ? 32 : 20)) {
+        //todo remove this
+        printf("[IMG4TOOL] File is invalid");
         reterror("BNCH size incorrect\n");
     }
     if (nonceSize) *nonceSize = bnchSize;
@@ -1149,7 +1162,7 @@ int verifyIMG4(char *buf, plist_t buildmanifest){
         //verify IMG4
         char *im4p = getIM4PFromIMG4(buf);
         im4pSHA = getSHA1ofSqeuence(im4p);
-
+        
         if (!im4p) goto error;
         
         buf = getElementFromIMG4(buf, "IM4M");
@@ -1185,13 +1198,12 @@ int verifyIMG4(char *buf, plist_t buildmanifest){
         warning("No BuildManifest specified, can't verify restore type of APTicket\n");
     }
     
-
+    
 error:
     safeFree(im4pSHA);
     return err;
 #undef reterror
 }
-
 
 
 

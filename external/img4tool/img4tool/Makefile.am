@@ -8,6 +8,7 @@ libimg4tool_la_CFLAGS = $(AM_CFLAGS) -DIMG4TOOL_NOMAIN
 libimg4tool_la_LIBADD = $(AM_LDFLAGS)
 else
 bin_PROGRAMS    = img4tool
+img4tool_LDFLAGS = -all-static -static-libgcc -static-libstdc++ $(AM_LDFLAGS)
 img4tool_CFLAGS = $(AM_CFLAGS)
 img4tool_LDADD = $(AM_LDFLAGS)
 img4tool_SOURCES = img4tool.c img4.c

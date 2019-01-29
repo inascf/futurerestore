@@ -5,10 +5,6 @@
 //  Created by tihmstar on 04.09.16.
 //  Copyright © 2016 tihmstar. All rights reserved.
 //
-#ifdef HAVE_INTTYPES_H
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-#endif
 
 #ifndef config_h
 #define config_h
@@ -22,9 +18,9 @@
 //idevicerestore config
 #define IDEVICERESTORE_NOMAIN
 
-#undef VERSION_COMMIT_SHA
-#undef VERSION_COMMIT_COUNT
-#define VERSION_COMMIT_COUNT_FUTURERESTORE "undefined version number"
-#define VERSION_COMMIT_SHA_FUTURERESTORE "undefined version commit"
+#undef VERSION_SHA
+#undef VERSION_COUNT
+#define VERSION_COUNT_FUTURERESTORE "224"
+#define VERSION_SHA_FUTURERESTORE "e9a1efd5a20c93de48c19535120d0a7af46e0e3e"
 
 #endif /* config_h */

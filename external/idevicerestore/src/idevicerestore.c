@@ -34,7 +34,6 @@
 #include <plist/plist.h>
 #include <zlib.h>
 #include <libgen.h>
-
 #include <curl/curl.h>
 
 #include "dfu.h"
@@ -48,70 +47,67 @@
 #include "download.h"
 #include "recovery.h"
 #include "idevicerestore.h"
-
 #include "limera1n.h"
-
 #include "locking.h"
 
 #define VERSION_XML "version.xml"
 
 #ifndef IDEVICERESTORE_NOMAIN
 static struct option longopts[] = {
-	{ "ecid",    required_argument, NULL, 'i' },
-	{ "udid",    required_argument, NULL, 'u' },
-	{ "debug",   no_argument,       NULL, 'd' },
-	{ "help",    no_argument,       NULL, 'h' },
-	{ "erase",   no_argument,       NULL, 'e' },
-	{ "custom",  no_argument,       NULL, 'c' },
-	{ "latest",  no_argument,       NULL, 'l' },
-	{ "cydia",   no_argument,       NULL, 's' },
-	{ "exclude", no_argument,       NULL, 'x' },
-	{ "shsh",    no_argument,       NULL, 't' },
-	{ "keep-pers", no_argument,     NULL, 'k' },
-	{ "pwn",     no_argument,       NULL, 'p' },
-	{ "no-action", no_argument,     NULL, 'n' },
-    { "downgrade", no_argument,     NULL, 'w' },
-    { "cache-path", required_argument, NULL, 'C' },
-    { "otamanifest", required_argument, NULL, 'o' },
-    { "boot", no_argument, NULL, 'b' },
-    { "paniclog", no_argument, NULL, 'g' },
-    { "nobootx", no_argument, NULL, 'b' },
+	{ "ecid",           required_argument, NULL, 'i' },
+	{ "udid",           required_argument, NULL, 'u' },
+	{ "debug",          no_argument,       NULL, 'd' },
+	{ "help",           no_argument,       NULL, 'h' },
+	{ "erase",          no_argument,       NULL, 'e' },
+	{ "custom",         no_argument,       NULL, 'c' },
+	{ "latest",         no_argument,       NULL, 'l' },
+	{ "cydia",          no_argument,       NULL, 's' },
+	{ "exclude",        no_argument,       NULL, 'x' },
+	{ "shsh",           no_argument,       NULL, 't' },
+	{ "keep-pers",      no_argument,       NULL, 'k' },
+	{ "pwn",            no_argument,       NULL, 'p' },
+	{ "no-action",      no_argument,       NULL, 'n' },
+    { "downgrade",      no_argument,       NULL, 'w' },
+    { "cache-path",     required_argument, NULL, 'C' },
+    { "otamanifest",    required_argument, NULL, 'o' },
+    { "boot",           no_argument,       NULL, 'b' },
+    { "paniclog",       no_argument,       NULL, 'g' },
+    { "nobootx",        no_argument,       NULL, 'b' },
 	{ NULL, 0, NULL, 0 }
 };
 
 void usage(int argc, char* argv[]) {
 	char* name = strrchr(argv[0], '/');
 	printf("Usage: %s [OPTIONS] FILE\n", (name ? name + 1 : argv[0]));
-	printf("Restore IPSW firmware FILE to an iOS device.\n\n");
-	printf("  -i, --ecid ECID\ttarget specific device by its hexadecimal ECID\n");
-	printf("                 \te.g. 0xaabb123456 or 00000012AABBCCDD\n");
-	printf("  -u, --udid UDID\ttarget specific device by its 40-digit device UDID\n");
+	printf("Restore iPSW firmware FILE to an iOS device.\n\n");
+    printf("  -h, --help\t\tprints usage information\n");
+	printf("  -i, --ecid ECID\ttarget specific device by its ECID\n");
+	printf("                 \te.g. 0xaabb123456 (hex) or 1234567890 (decimal)\n");
+	printf("  -u, --udid UDID\ttarget specific device by its device UDID\n");
 	printf("                 \tNOTE: only works with devices in normal mode.\n");
-	printf("  -d, --debug\t\tenable communication debugging\n");
-	printf("  -h, --help\t\tprints usage information\n");
+    printf("  -d, --debug\t\tenable communication debugging\n");
 	printf("  -e, --erase\t\tperform a full restore, erasing all data (defaults to update)\n");
-	printf("  -c, --custom\t\trestore with a custom firmware\n");
+	printf("  -c, --custom\t\trestore with a custom firmware (limera1n devices only)\n");
 	printf("  -l, --latest\t\tuse latest available firmware (with download on demand)\n");
 	printf("              \t\tDO NOT USE if you need to preserve the baseband (unlock)!\n");
 	printf("              \t\tUSE WITH CARE if you want to keep a jailbreakable firmware!\n");
 	printf("              \t\tThe FILE argument is ignored when using this option.\n");
-	printf("  -s, --cydia\t\tuse Cydia's signature service instead of Apple's\n");
-	printf("  -x, --exclude\t\texclude nor/baseband upgrade\n");
-	printf("  -t, --shsh\t\tfetch TSS record and save to .shsh file, then exit\n");
+	printf("  -s, --cydia\t\tuse Cydia's TSS service instead of Apple's\n");
+    printf("             \t\tOnly works for 32-bit devices!\n");
+	printf("  -x, --exclude\t\texclude NOR/baseband upgrade\n");
+	printf("  -t, --shsh\t\tfetch signing tickets and save to .shsh file, then exit\n");
 	printf("  -k, --keep-pers\twrite personalized components to files for debugging\n");
 	printf("  -p, --pwn\t\tput device in pwned DFU mode and exit (limera1n devices only)\n");
-	printf("  -n, --no-action\tDo not perform any restore action. If combined with -l option\n");
-	printf("                 \tthe on demand ipsw download is performed before exiting.\n");
-	printf("  -w, --downgrade\tdowngrade with a custom firmware\n");
-	printf("  -C, --cache-path DIR\tUse specified directory for caching extracted\n");
-    printf("                      \tor other reused files.\n");
-    printf("  -o, --otamanifest BuildManifest.plist\tspecify ota BuildManifest to\n");
-    printf("                 \tsign bootfiles with a different apticket\n");
-    printf("  -b, --boot\t\tjust boot tethered\n");
+    printf("           \t\tNOT compatible with virtual machines!");
+	printf("  -n, --no-action\tDo not perform any restore action. If combined with -l option the on demand ipsw download is performed before exiting.\n");
+	printf("  -w, --downgrade\tdowngrade with a custom firmware (kDFU method, only for 32-bit devices!)\n");
+	printf("  -C, --cache-path DIR\tUse specified directory for caching extracted or other reused files.\n");
+    printf("  -o, --otamanifest BuildManifest.plist\tspecify OTA BuildManifest to sign bootfiles with a different ApTicket\n");
+    printf("  -b, --boot\t\tjust boot tethered (limera1n devices only)\n");
     printf("      --nobootx\t\tdoes not run \"bootx\" command\n");
-    printf("  -g, --paniclog\tboot restore ramdisk, print paniclog (if available) and reboot\n");
-	printf("\n");
-    printf("Homepage: <" PACKAGE_URL ">\n");
+    printf("  -g, --paniclog\tboot restore ramdisk, print paniclog (if available) and reboot\n\n");
+    printf("Homepage: https://github.com/s0uthwest/idevicerestore\n");
+    printf("Original project: https://github.com/s0uthwest/idevicerestore\n");
 }
 #endif
 
@@ -209,9 +205,6 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 
 	idevicerestore_progress(client, RESTORE_STEP_DETECT, 0.0);
 
-	// update version data (from cache, or apple if too old)
-	load_version_data(client);
-
 	// check which mode the device is currently in so we know where to start
 	if (check_mode(client) < 0 || client->mode->index == MODE_UNKNOWN ||
 	    ((client->flags & FLAG_DOWNGRADE) && client->mode->index != MODE_DFU && client->mode->index != MODE_RECOVERY)) {
@@ -242,6 +235,9 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 		// Prefer to get WTF file from the restore IPSW
 		ipsw_extract_to_memory(client->ipsw, wtfname, &wtftmp, &wtfsize);
 		if (!wtftmp) {
+			// update version data (from cache, or apple if too old)
+			load_version_data(client);
+
 			// Download WTF IPSW
 			char* s_wtfurl = NULL;
 			plist_t wtfurl = plist_access_path(client->version_data, 7, "MobileDeviceSoftwareVersionsByVersion", "5", "RecoverySoftwareVersions", "WTF", "304218112", "5", "FirmwareURL");
@@ -317,7 +313,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 			return -1;
 		}
 		info("exploiting with limera1n...\n");
-		// TODO: check for non-limera1n device and fail
+		// TO-DO: check for non-limera1n device and fail
 		if (limera1n_exploit(client->device, &client->dfu->client) != 0) {
 			error("ERROR: limera1n exploit failed\n");
 			dfu_client_free(client);
@@ -330,6 +326,8 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 	}
 
 	if (client->flags & FLAG_LATEST) {
+		// update version data (from cache, or apple if too old)
+		load_version_data(client);
 		char* ipsw = NULL;
 		int res = ipsw_download_latest_fw(client->version_data, client->device->product_type, client->cache_dir, &ipsw);
 		if (res != 0) {
@@ -655,7 +653,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 		lock_file(lockfn, &li);
 		FILE* extf = NULL;
 		if (access(extfn, F_OK) != 0) {
-			extf = fopen(extfn, "w");
+			extf = fopen(extfn, "wb");
 		}
 		unlock_file(&li);
 		if (!extf) {
@@ -694,7 +692,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 
 	idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.2);
 
-	/* retrieve shsh blobs if required */
+	/* retrieve signing tickets if required */
 	if (tss_enabled) {
 		debug("Getting device's ECID for TSS request\n");
 		/* fetch the device's ECID for the TSS request */
@@ -709,7 +707,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 			int nonce_size = 0;
 			if (get_ap_nonce(client, &nonce, &nonce_size) < 0) {
 				/* the first nonce request with older firmware releases can fail and it's OK */
-				info("NOTE: Unable to get nonce from device\n");
+				info("NOTE: Unable to get ApNonce from device\n");
 			}
 
 			if (!client->nonce || (nonce_size != client->nonce_size) || (memcmp(nonce, client->nonce, nonce_size) != 0)) {
@@ -724,7 +722,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 		}
 
 		if (get_tss_response(client, build_identity, &client->tss) < 0) {
-			error("ERROR: Unable to get SHSH blobs for this device\n");
+			error("ERROR: Unable to get signing tickets for this device\n");
 			return -1;
 		}
 	}
@@ -757,9 +755,9 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 					gzFile zf = gzopen(zfn, "wb");
 					gzwrite(zf, bin, blen);
 					gzclose(zf);
-					info("SHSH saved to '%s'\n", zfn);
+					info("Signing tickets saved to '%s'\n", zfn);
 				} else {
-					info("SHSH '%s' already present.\n", zfn);
+					info("Signing tickets '%s' already present.\n", zfn);
 				}
 				free(bin);
 			} else {
@@ -854,7 +852,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 		recovery_client_free(client);
 
 		/* this must be long enough to allow the device to run the iBEC */
-		/* FIXME: Probably better to detect if the device is back then */
+        /* FIXME: Probably better to detect if the device is back then */
 		sleep(7);
 	}
 	idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.5);
@@ -887,7 +885,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
 			// Welcome iOS5. We have to re-request the TSS with our nonce.
 			plist_free(client->tss);
             if ((client->flags & FLAG_OTAMANIFEST ? get_tss_response(client, build_identity2, &client->tss) : get_tss_response(client, build_identity, &client->tss)) < 0) {
-                error("ERROR: Unable to get SHSH blobs for this device\n");
+                error("ERROR: Unable to get signing tickets for this device\n");
                 if (delete_fs && filesystem)
                     unlink(filesystem);
                 return -1;
@@ -1129,7 +1127,7 @@ int main(int argc, char* argv[]) {
 		case 'i':
 			if (optarg) {
 				char* tail = NULL;
-				client->ecid = strtoull(optarg, &tail, 16);
+				client->ecid = strtoull(optarg, &tail, 0);
 				if (tail && (tail[0] != '\0')) {
 					client->ecid = 0;
 				}
@@ -1518,7 +1516,7 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
 	*tss = NULL;
 
 	if ((client->build_major <= 8) || (client->flags & (FLAG_CUSTOM | FLAG_DOWNGRADE))) {
-		error("checking for local shsh\n");
+		error("checking for local signing tickets\n");
 
 		/* first check for local copy */
 		char zfn[1024];
@@ -1565,7 +1563,7 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
 					free(bin);
 				}
 			} else {
-				error("no local file %s\n", zfn);
+				error("no local signing tickets file %s\n", zfn);
 			}
 		} else {
 			error("No version found?!\n");
@@ -1573,13 +1571,13 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
 	}
 
 	if (*tss) {
-		info("Using cached SHSH\n");
+		info("Using cached signing tickets\n");
 		return 0;
 	} else if (client->flags & FLAG_DOWNGRADE) {
 		error("Refusing to proceed without saved ticket\n");
 		return -1;
 	} else {
-		info("Trying to fetch new SHSH blob\n");
+		info("Trying to fetch new signing tickets\n");
 	}
 
 	/* populate parameters */
@@ -1692,7 +1690,7 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
 		return -1;
 	}
 
-	info("Received SHSH blobs\n");
+	info("Received signing tickets\n");
 
 	plist_free(request);
 	plist_free(parameters);
@@ -1778,7 +1776,7 @@ int personalize_component(const char *component_name, const unsigned char* compo
 	} else {
 		/* try to get blob for current component from tss response */
 		if (tss_response && tss_response_get_blob_by_entry(tss_response, component_name, &component_blob) < 0) {
-			debug("NOTE: No SHSH blob found for component %s\n", component_name);
+			debug("NOTE: No signing tickets found for component %s\n", component_name);
 		}
 
 		if (component_blob != NULL) {
@@ -1960,6 +1958,8 @@ const char* get_component_name(const char* filename) {
 		return "AppleLogo";
 	} else if (!strncmp(filename, "liquiddetect", 12)) {
 		return "Liquid";
+	} else if (!strncmp(filename, "lowpowermode", 12)) {
+		return "LowPowerWallet0";
 	} else if (!strncmp(filename, "recoverymode", 12)) {
 		return "RecoveryMode";
 	} else if (!strncmp(filename, "batterylow0", 11)) {

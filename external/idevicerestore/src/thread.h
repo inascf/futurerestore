@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __THREAD_H
-#define __THREAD_H
+#ifndef THREAD_H
+#define THREAD_H
 
 #ifdef WIN32
 #include <windows.h>
@@ -34,6 +34,7 @@ typedef volatile struct {
 #define THREAD_ID GetCurrentThreadId()
 #else
 #include <pthread.h>
+#include <signal.h>
 typedef pthread_t thread_t;
 typedef pthread_mutex_t mutex_t;
 typedef pthread_once_t thread_once_t;
@@ -55,4 +56,4 @@ void mutex_unlock(mutex_t* mutex);
 
 void thread_once(thread_once_t *once_control, void (*init_routine)(void));
 
-#endif
+#endif /* thread_h */

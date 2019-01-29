@@ -19,6 +19,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,7 +136,11 @@ int download_to_file(const char* url, const char* filename, int enable_progress)
 	curl_easy_perform(handle);
 	curl_easy_cleanup(handle);
 
+#ifdef WIN32
+	uint64_t sz = _ftelli64(f);
+#else
 	off_t sz = ftello(f);
+#endif
 	fclose(f);
 
 	if ((sz == 0) || (sz == (off_t)-1)) {

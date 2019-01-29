@@ -1,9 +1,9 @@
 AC_PREREQ(2.64)
-AC_INIT([futurerestore], [1.0], [https://github.com/xybp888/futurerestore/issues],, [https://github.com/xybp888/futurerestore])
+AC_INIT([futurerestore], [1.0], [https://github.com/s0uthwest/futurerestore/issues])
 
 AC_CANONICAL_SYSTEM
-
 AC_CANONICAL_HOST
+
 # Check for operating system
 AC_MSG_CHECKING([whether we need platform-specific build settings])
 case $host_os in
@@ -32,11 +32,11 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 PKG_CHECK_MODULES(libplist, libplist >= 1.12)
 PKG_CHECK_MODULES(libzip, libzip >= 0.10)
 PKG_CHECK_MODULES(libimobiledevice, libimobiledevice-1.0 >= 1.2.1)
+PKG_CHECK_MODULES(libfragmentzip, libfragmentzip >= 1.0)
 PKG_CHECK_MODULES(libirecovery, libirecovery >= 0.2.0)
 
 AC_PROG_CC
 AC_PROG_CXX
-
 
 # Optional module libipatcher
 AC_ARG_WITH([libipatcher],
@@ -80,7 +80,6 @@ AC_OUTPUT([
 Makefile
 futurerestore/Makefile
 ])
-
 
 echo "
 Configuration for $PACKAGE $VERSION:

@@ -1,32 +1,27 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+*.patch
+*.diff
+*.swp
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+depcomp
+compile
+config.*
+configure
+install-sh
+libtool
+ltmain.sh
+m4
+missing
+*/.DS_Store
+*/*.o
+*/*.la
+*/*.lo
+*/config.h.bak
+*/futurerestore
+*/futurerestore.exe
+*/.libs
+*/.deps
+stamp-h1
+.DS_Store

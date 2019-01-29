@@ -13,9 +13,11 @@
 #include <libgen.h>
 #include <zlib.h>
 #include "futurerestore.hpp"
+
 #ifdef HAVE_LIBIPATCHER
 #include <libipatcher/libipatcher.hpp>
 #endif
+
 extern "C"{
 #include "common.h"
 #include "../external/img4tool/img4tool/img4.h"
@@ -27,10 +29,8 @@ extern "C"{
 #include "locking.h"
 #include "restore.h"
 #include "tsschecker.h"
-#include "all_tsschecker.h"
 #include <libirecovery.h>
 }
-
 
 //(re)define __mkdir
 #ifdef __mkdir
@@ -74,8 +74,6 @@ extern "C"{
 #define safeFree(buf) if (buf) free(buf), buf = NULL
 #define safePlistFree(buf) if (buf) plist_free(buf), buf = NULL
 
-static int zip_test_file(zip_t *za, zip_uint64_t idx, zip_uint64_t size, zip_uint32_t crc);
-
 futurerestore::futurerestore(bool isUpdateInstall, bool isPwnDfu) : _isUpdateInstall(isUpdateInstall), _isPwnDfu(isPwnDfu){
     _client = idevicerestore_client_new();
     if (_client == NULL) throw std::string("could not create idevicerestore client\n");
@@ -92,10 +90,10 @@ bool futurerestore::init(){
     if (_didInit) return _didInit;
     _didInit = (check_mode(_client) != MODE_UNKNOWN);
     if (!(_client->image4supported = is_image4_supported(_client))){
-        info("[INFO] 32bit device detected\n");
+        info("[INFO] 32-bit device detected\n");
     }else{
-        info("[INFO] 64bit device detected\n");
-        if (_isPwnDfu) reterror(-90, "isPwnDfu is only allowed for 32bit devices\n");
+        info("[INFO] 64-bit device detected\n");
+        if (_isPwnDfu) reterror(-90, "isPwnDfu is only allowed for 32-bit devices\n");
     }
     return _didInit;
 }
@@ -131,10 +129,12 @@ void futurerestore::putDeviceIntoRecovery(){
     getDeviceMode(false);
     info("Found device in %s mode\n", _client->mode->string);
     if (_client->mode->index == MODE_NORMAL){
+        
 #ifdef HAVE_LIBIPATCHER
         if (_isPwnDfu)
             reterror(-501, "isPwnDfu enabled, but device was found in normal mode\n");
 #endif
+        
         info("Entering recovery mode...\n");
         if (normal_enter_recovery(_client) < 0) {
             reterror(-2,"Unable to place device into recovery mode from %s mode\n", _client->mode->string);
@@ -150,9 +150,9 @@ void futurerestore::putDeviceIntoRecovery(){
               ){
         info("requesting to get into pwnRecovery later\n");
     }else if (!_client->image4supported){
-        info("32bit device in DFU mode found, assuming user wants to use iOS9 re-restore bug. Not failing here\n");
+        info("32-bit device in DFU mode found, assuming user wants to use iOS 9 re-restore bug. Not failing here\n");
     }else{
-        reterror(-3, "unsupported devicemode, please put device in recovery mode or normal mode\n");
+        reterror(-3, "unsupported device mode, please put device in recovery mode or normal mode\n");
     }
     
     //only needs to be freed manually when function did't throw exception
@@ -168,7 +168,7 @@ void futurerestore::setAutoboot(bool val){
     if (!_didInit) reterror(-1, "did not init\n");
     
     if (getDeviceMode(false) != MODE_RECOVERY){
-        reterror(-2, "can't set autoboot, when device isn't in recovery mode\n");
+        reterror(-2, "can't set auto-boot, when device isn't in recovery mode\n");
     }
     
     if (_client->recovery || recovery_client_new(_client) == 0) {
@@ -190,20 +190,19 @@ plist_t futurerestore::nonceMatchesApTickets(){
     if (!_didInit) reterror(-1, "did not init\n");
     if (getDeviceMode(true) != MODE_RECOVERY){
         if (getDeviceMode(false) != MODE_DFU || *_client->version != '9')
-            reterror(-10, "Device not in recovery mode, can't check apnonce\n");
+            reterror(-10, "Device not in recovery mode, can't check ApNonce\n");
         else
             _rerestoreiOS9 = (info("Detected iOS 9 re-restore, proceeding in DFU mode\n"),true);
     }
     
-    
     unsigned char* realnonce;
     int realNonceSize = 0;
     if (_rerestoreiOS9) {
-        info("Skipping APNonce check\n");
+        info("Skipping ApNonce check\n");
     }else{
         recovery_get_ap_nonce(_client, &realnonce, &realNonceSize);
         
-        info("Got APNonce from device: ");
+        info("Got ApNonce from device: ");
         int i = 0;
         for (i = 0; i < realNonceSize; i++) {
             info("%02x ", ((unsigned char *)realnonce)[i]);
@@ -229,18 +228,17 @@ plist_t futurerestore::nonceMatchesApTickets(){
                          )
                  )
                )
-                //either nonce needs to match or using re-restore bug in iOS 9
+                //either ApNonce needs to match or using re-restore bug in iOS 9
                 return _aptickets[i];
         }
     }
-    
     
     return NULL;
 }
 
 const char *futurerestore::nonceMatchesIM4Ms(){
     if (!_didInit) reterror(-1, "did not init\n");
-    if (getDeviceMode(true) != MODE_RECOVERY) reterror(-10, "Device not in recovery mode, can't check apnonce\n");
+    if (getDeviceMode(true) != MODE_RECOVERY) reterror(-10, "Device not in recovery mode, can't check ApNonce\n");
     
     unsigned char* realnonce;
     int realNonceSize = 0;
@@ -258,11 +256,8 @@ const char *futurerestore::nonceMatchesIM4Ms(){
         }
     }
     
-    
     return NULL;
 }
-
-
 
 void futurerestore::waitForNonce(vector<const char *>nonces, size_t nonceSize){
     if (!_didInit) reterror(-1, "did not init\n");
@@ -272,7 +267,7 @@ void futurerestore::waitForNonce(vector<const char *>nonces, size_t nonceSize){
     int realNonceSize = 0;
     
     for (auto nonce : nonces){
-        info("waiting for nonce: ");
+        info("waiting for ApNonce: ");
         int i = 0;
         for (i = 0; i < nonceSize; i++) {
             info("%02x ", ((unsigned char *)nonce)[i]);
@@ -304,13 +299,14 @@ void futurerestore::waitForNonce(vector<const char *>nonces, size_t nonceSize){
     
     setAutoboot(true);
 }
+
 void futurerestore::waitForNonce(){
     if (!_im4ms.size()) reterror(-1, "No IM4M loaded\n");
     size_t nonceSize = 0;
     vector<const char*>nonces;
     
     if (!_client->image4supported)
-        reterror(-77, "Error: waitForNonce is not supported on 32bit devices\n");
+        reterror(-77, "Error: ApNonce collisions is not supported on 32-bit devices\n");
     
     for (auto im4m : _im4ms){
         nonces.push_back(getBNCHFromIM4M(im4m,&nonceSize));
@@ -326,7 +322,7 @@ void futurerestore::loadAPTickets(const vector<const char *> &apticketPaths){
         
         struct stat fst;
         if (stat(apticketPath, &fst))
-            reterror(-9, "failed to load apticket at %s\n",apticketPath);
+            reterror(-9, "failed to load APTicket at %s\n",apticketPath);
         
         gzFile zf = gzopen(apticketPath, "rb");
         if (zf) {
@@ -373,7 +369,7 @@ void futurerestore::loadAPTickets(const vector<const char *> &apticketPaths){
         plist_get_data_val(ticket, &im4m, &im4msize);
         
         if (!im4msize)
-            reterror(-38, "Error: failed to load shsh file %s\n",apticketPath);
+            reterror(-38, "Error: failed to load ticket %s\n",apticketPath);
         
         _im4ms.push_back(im4m);
         _aptickets.push_back(apticket);
@@ -433,7 +429,6 @@ char *futurerestore::getiBootBuild(){
     return _ibootBuild;
 }
 
-
 pair<ptr_smart<char*>, size_t> getIPSWComponent(struct idevicerestore_client_t* client, plist_t build_identity, string component){
     ptr_smart<char *> path;
     unsigned char* component_data = NULL;
@@ -452,7 +447,6 @@ pair<ptr_smart<char*>, size_t> getIPSWComponent(struct idevicerestore_client_t* 
     return {(char*)component_data,component_size};
 }
 
-
 void futurerestore::enterPwnRecovery(plist_t build_identity, string bootargs){
 #ifndef HAVE_LIBIPATCHER
     reterror(-404, "compiled without libipatcher");
@@ -465,7 +459,6 @@ void futurerestore::enterPwnRecovery(plist_t build_identity, string bootargs){
         reterror(-91,"Unable to connect to DFU device\n");
     irecv_get_mode(_client->dfu->client, &mode);
     
-    
     try {
         iBSSKeys = libipatcher::getFirmwareKey(_client->device->product_type, _client->build, "iBSS");
         iBECKeys = libipatcher::getFirmwareKey(_client->device->product_type, _client->build, "iBEC");
@@ -474,17 +467,15 @@ void futurerestore::enterPwnRecovery(plist_t build_identity, string bootargs){
         reterror(e.code(), "getting keys failed. Are keys publicly available?");
     }
     
-    
     auto iBSS = getIPSWComponent(_client, build_identity, "iBSS");
     iBSS = move(libipatcher::patchiBSS((char*)iBSS.first, iBSS.second, iBSSKeys));
-    
     
     auto iBEC = getIPSWComponent(_client, build_identity, "iBEC");
     iBEC = move(libipatcher::patchiBEC((char*)iBEC.first, iBEC.second, iBECKeys, bootargs));
     
     bool modeIsRecovery = false;
     if (mode != IRECV_K_DFU_MODE) {
-        info("NOTE: device is not in DFU mode, assuming pwn recovery mode.\n");
+        info("NOTE: device is not in DFU mode, assuming kDFU mode.\n");
         for (int i=IRECV_K_RECOVERY_MODE_1; i<=IRECV_K_RECOVERY_MODE_4; i++) {
             if (mode == i)
                 modeIsRecovery = true;
@@ -512,7 +503,6 @@ void futurerestore::enterPwnRecovery(plist_t build_identity, string bootargs){
         
         /* send iBEC */
         info("Sending %s (%lu bytes)...\n", "iBEC", iBEC.second);
-        // FIXME: Did I do this right????
         irecv_error_t err = irecv_send_buffer(_client->dfu->client, (unsigned char*)(char*)iBEC.first, (unsigned long)iBEC.second, 1);
         if (err != IRECV_E_SUCCESS) {
             reterror(-92,"ERROR: Unable to send %s component: %s\n", "iBSS", irecv_strerror(err));
@@ -522,7 +512,6 @@ void futurerestore::enterPwnRecovery(plist_t build_identity, string bootargs){
     }
     
     dfu_client_free(_client);
-    
     sleep(7);
     
     // Reconnect to device, but this time make sure we're not still in DFU mode
@@ -562,7 +551,6 @@ void get_custom_component(struct idevicerestore_client_t* client, plist_t build_
     
 #endif
 }
-
 
 int futurerestore::doRestore(const char *ipsw){
 #undef reterror
@@ -632,7 +620,7 @@ int futurerestore::doRestore(const char *ipsw){
     if (_enterPwnRecoveryRequested) //we are in pwnDFU, so we don't need to check nonces
         client->tss = _aptickets.at(0);
     else if (!(client->tss = nonceMatchesApTickets()))
-        reterror(-20, "Devicenonce does not match APTicket nonce\n");
+        reterror(-20, "Devicen ApNonce does not match APTicket nonce\n");
     
     plist_dict_remove_item(client->tss, "BBTicket");
     plist_dict_remove_item(client->tss, "BasebandFirmware");
@@ -679,8 +667,7 @@ int futurerestore::doRestore(const char *ipsw){
             printf("Verified ECID in APTicket matches device ECID\n");
         
         plist_t ticketIdentity = getBuildIdentityForIM4M(im4m, buildmanifest);
-        //TODO: make this nicer!
-        //for now a simple pointercompare should be fine, because both plist_t should point into the same buildidentity inside the buildmanifest
+        //TO-DO: make this nicer! For now a simple pointercompare should be fine, because both plist_t should point into the same buildidentity inside the buildmanifest
         if (ticketIdentity != build_identity ){
             error("BuildIdentity selected for restore does not match APTicket\n\n");
             printf("BuildIdentity selected for restore:\n");
@@ -715,7 +702,6 @@ int futurerestore::doRestore(const char *ipsw){
         
         plist_get_data_val(digest, &manifestDigest, &manifestDigestSize);
         
-        
         if (tickethashSize == manifestDigestSize && memcmp(tickethash, manifestDigest, tickethashSize) == 0){
             printf("Verified APTicket to be valid for this restore\n");
             free(manifestDigest);
@@ -725,7 +711,6 @@ int futurerestore::doRestore(const char *ipsw){
             reterror(-44, "APTicket can't be used for this restore\n");
         }
     }
-    
     
     if (_basebandbuildmanifest){
         if (!(client->basebandBuildIdentity = getBuildidentityWithBoardconfig(_basebandbuildmanifest, client->device->hardware_model, _isUpdateInstall))){
@@ -759,7 +744,7 @@ int futurerestore::doRestore(const char *ipsw){
         uint64_t sephashlen = 0;
         plist_t digest = plist_dict_get_item(sep_sep, "Digest");
         if (!digest || plist_get_node_type(digest) != PLIST_DATA)
-            reterror(-66, "ERROR: can't find sep digest\n");
+            reterror(-66, "ERROR: can't find SEP digest\n");
         
         plist_get_data_val(digest, reinterpret_cast<char **>(&sephash), &sephashlen);
         
@@ -768,7 +753,7 @@ int futurerestore::doRestore(const char *ipsw){
         else
             SHA384((unsigned char*)_client->sepfwdata, (unsigned int)_client->sepfwdatasize, genHash);
         if (memcmp(genHash, sephash, sephashlen))
-            reterror(-67, "ERROR: SEP does not match sepmanifest\n");
+            reterror(-67, "ERROR: SEP does not match SEPManifest\n");
     }
     
     /* print information about current build identity */
@@ -780,7 +765,6 @@ int futurerestore::doRestore(const char *ipsw){
             reterror(-6, "unexpected device mode\n");
         enterPwnRecovery(build_identity);
     }
-    
     
     // Get filesystem name from build identity
     char* fsname = NULL;
@@ -902,8 +886,6 @@ int futurerestore::doRestore(const char *ipsw){
         }
     }
     
-    
-    
     if (_enterPwnRecoveryRequested){ //if pwnrecovery send all components decrypted, unless we're dealing with iOS 10
         if (strncmp(client->version, "10.", 3))
             client->recovery_custom_component_function = get_custom_component;
@@ -914,11 +896,10 @@ int futurerestore::doRestore(const char *ipsw){
         }
         printf("waiting for device to reconnect... ");
         recovery_client_free(client);
-        /* this must be long enough to allow the device to run the iBEC */
-        /* FIXME: Probably better to detect if the device is back then */
+        /* this must be long enough to allow the device to run the iBEC
+           FIXME: Probably better to detect if the device is back then */
         sleep(7);
     }
-        
    
     for (int i=0;getDeviceMode(true) != MODE_RECOVERY && i<40; i++) putchar('.'),usleep(USEC_PER_SEC*0.5);
     putchar('\n');
@@ -949,17 +930,12 @@ int futurerestore::doRestore(const char *ipsw){
         recovery_client_free(client);
     }
     
-    
     if (_client->image4supported && get_tss_response(client, sep_build_identity, &client->septss) < 0) {
-        reterror(-11,"ERROR: Unable to get SHSH blobs for SEP\n");
+        reterror(-11,"ERROR: Unable to get signing tickets for SEP\n");
     }
-    
-    
     
     if (_client->image4supported && (!_client->sepfwdatasize || !_client->sepfwdata))
         reterror(-55, "SEP not loaded, refusing to continue");
-    
-    
     
     if (client->mode->index == MODE_RESTORE) {
         info("About to restore device... \n");
@@ -971,7 +947,6 @@ int futurerestore::doRestore(const char *ipsw){
     }
     
     info("Cleaning up...\n");
-    
     
 error:
     safeFree(client->sepfwdata);
@@ -1033,14 +1008,12 @@ int futurerestore::doJustBoot(const char *ipsw, string bootargs){
     if (!(build_identity = getBuildidentityWithBoardconfig(buildmanifest, client->device->hardware_model, 0)))
         reterror(-5,"ERROR: Unable to find any build identities for IPSW\n");
 
-    
     /* print information about current build identity */
     build_identity_print_information(build_identity);
     
-    
-    //check for enterpwnrecovery, because we could be in DFU mode
+    //check for kDFU, because we could be in DFU mode
     if (!_enterPwnRecoveryRequested)
-        reterror(-6, "enterPwnRecoveryRequested is not set, but required");
+        reterror(-6, "Device isn't in kDFU mode\n");
         
     if (getDeviceMode(true) != MODE_DFU && getDeviceMode(false) != MODE_RECOVERY)
         reterror(-6, "unexpected device mode\n");
@@ -1156,7 +1129,7 @@ char *futurerestore::getLatestManifest(){
         ptr_smart<const char*>autofree(versVals.version);
         
         __latestFirmwareUrl = getFirmwareUrl(device, &versVals, _firmwareTokens);
-        if (!__latestFirmwareUrl) reterror(-21, "could not find url of latest firmware\n");
+        if (!__latestFirmwareUrl) reterror(-21, "could not find URL of latest firmware\n");
         
         __latestManifest = getBuildManifest(__latestFirmwareUrl, device, versVals.version, versVals.buildID, 0);
         if (!__latestManifest) reterror(-22, "could not get buildmanifest of latest firmware\n");
@@ -1172,11 +1145,12 @@ char *futurerestore::getLatestFirmwareUrl(){
 void futurerestore::loadLatestBaseband(){
     char *manifeststr = getLatestManifest();
     char *pathStr = getPathOfElementInManifest("BasebandFirmware", manifeststr, _client, 0);
-    info("downloading Baseband\n\n");
+    info("downloading baseband\n\n");
     if (downloadPartialzip(getLatestFirmwareUrl(), pathStr, _basebandPath = BASEBAND_TMP_PATH))
         reterror(-32, "could not download baseband\n");
     saveStringToFile(manifeststr, BASEBAND_MANIFEST_TMP_PATH);
-    setBasebandPath(BASEBAND_TMP_PATH, BASEBAND_MANIFEST_TMP_PATH);
+    setBasebandPath(BASEBAND_TMP_PATH);
+    setBasebandManifestPath(BASEBAND_MANIFEST_TMP_PATH);
 }
 
 void futurerestore::loadLatestSep(){
@@ -1185,132 +1159,49 @@ void futurerestore::loadLatestSep(){
     info("downloading SEP\n\n");
     if (downloadPartialzip(getLatestFirmwareUrl(), pathStr, SEP_TMP_PATH))
         reterror(-33, "could not download SEP\n");
+    loadSep(SEP_TMP_PATH);
     saveStringToFile(manifeststr, SEP_MANIFEST_TMP_PATH);
-    loadSep(SEP_TMP_PATH, SEP_MANIFEST_TMP_PATH);
+    setSepManifestPath(SEP_MANIFEST_TMP_PATH);
 }
 
-void futurerestore::loadSepFromIpsw(const char *ipswPath) {
-    irecv_device_t device = loadDeviceInfo();
-    char *buildManifestString = nullptr;
-    uint32_t buildManifestSize;
-    plist_t buildIdentity = nullptr;
-    char *path = nullptr;
-    int unused;
-
-    info("Extracting SEP from IPSW...\n");
-    if (ipsw_extract_build_manifest(ipswPath, &_sepbuildmanifest, &unused) < 0) {
-        reterror(-3, "ERROR: Unable to extract BuildManifest from %s. Firmware file might be corrupt.\n", ipswPath);
-    }
-    if (build_manifest_check_compatibility(_sepbuildmanifest, device->product_type) < 0) {
-        reterror(-4, "ERROR: Could not make sure this firmware is suitable for the current device. Refusing to continue.\n");
-    }
-    if (!(buildIdentity = getBuildidentityWithBoardconfig(_sepbuildmanifest, device->hardware_model, _isUpdateInstall))) {
-        reterror(-5, "ERROR: Unable to find any build identities in IPSW\n");
-    }
-    if (build_identity_get_component_path(buildIdentity, "SEP", &path) < 0) {
-        reterror(-6, "ERROR: Failed to find SEP component path\n");
-    }
-    if (extract_component(ipswPath, path,
-                          reinterpret_cast<unsigned char **>(&_client->sepfwdata),
-                          reinterpret_cast<unsigned int *>(&_client->sepfwdatasize)) < 0) {
-        reterror(-7, "ERROR: Failed to extract SEP from IPSW\n");
-    }
-
-    plist_to_xml(_sepbuildmanifest, &buildManifestString, &buildManifestSize);
-    saveStringToFile(buildManifestString, SEP_MANIFEST_TMP_PATH);
-    _sepbuildmanifestPath = SEP_MANIFEST_TMP_PATH;
-    info("Extracted SEP with size %lu\n", _client->sepfwdatasize);
-
-    free(buildManifestString);
-    free(path);
-}
-
-void futurerestore::loadBasebandFromIpsw(const char *ipswPath) {
-    irecv_device_t device = loadDeviceInfo();
-    char *buildManifestString = nullptr;
-    uint32_t buildManifestSize;
-    plist_t buildIdentity = nullptr;
-    char *path = nullptr;
-    int unused;
-    uint8_t *basebandFirmware;
-    uint32_t basebandFirmwareSize;
-
-    info("Extracting baseband from IPSW...\n");
-    if (ipsw_extract_build_manifest(ipswPath, &_basebandbuildmanifest, &unused) < 0) {
-        reterror(-3, "ERROR: Unable to extract BuildManifest from %s. Firmware file might be corrupt.\n", ipswPath);
-    }
-    if (build_manifest_check_compatibility(_basebandbuildmanifest, device->product_type) < 0) {
-        reterror(-4, "ERROR: Could not make sure this firmware is suitable for the current device. Refusing to continue.\n");
-    }
-    if (!(buildIdentity = getBuildidentityWithBoardconfig(_basebandbuildmanifest, device->hardware_model, _isUpdateInstall))) {
-        reterror(-5, "ERROR: Unable to find any build identities in IPSW\n");
-    }
-    if (build_identity_get_component_path(buildIdentity, "BasebandFirmware", &path) < 0) {
-        reterror(-6, "ERROR: Failed to find BasebandFirmware component path\n");
-    }
-    if (extract_component(ipswPath, path, &basebandFirmware, &basebandFirmwareSize) < 0) {
-        reterror(-7, "ERROR: Failed to extract BasebandFirmware from IPSW\n");
-    }
-    FILE *basebandFile = fopen(BASEBAND_TMP_PATH, "wb");
-    if (!basebandFile || fwrite(basebandFirmware, 1, basebandFirmwareSize, basebandFile) != basebandFirmwareSize) {
-        reterror(-8, "ERROR: Failed to write baseband firmware to temporary file\n");
-    }
-    fclose(basebandFile);
-
-    plist_to_xml(_basebandbuildmanifest, &buildManifestString, &buildManifestSize);
-    saveStringToFile(buildManifestString, BASEBAND_MANIFEST_TMP_PATH);
-    info("Extracted BasebandFirmware with size %d\n", basebandFirmwareSize);
-    setBasebandPath(BASEBAND_TMP_PATH, BASEBAND_MANIFEST_TMP_PATH);
-
-    free(basebandFirmware);
-    free(buildManifestString);
-}
-
-void futurerestore::loadSep(const char *sepPath, const char *sepManifestPath) {
+void futurerestore::setSepManifestPath(const char *sepManifestPath){
     if (!(_sepbuildmanifest = loadPlistFromFile(_sepbuildmanifestPath = sepManifestPath)))
         reterror(-14, "failed to load SEPManifest");
+}
 
+void futurerestore::setBasebandManifestPath(const char *basebandManifestPath){
+    if (!(_basebandbuildmanifest = loadPlistFromFile(_basebandbuildmanifestPath = basebandManifestPath)))
+        reterror(-14, "failed to load BasebandManifest");
+};
+
+void futurerestore::loadSep(const char *sepPath){
     FILE *fsep = fopen(sepPath, "rb");
     if (!fsep)
         reterror(-15, "failed to read SEP\n");
-
+    
     fseek(fsep, 0, SEEK_END);
-    _client->sepfwdatasize = static_cast<size_t>(ftell(fsep));
+    _client->sepfwdatasize = ftell(fsep);
     fseek(fsep, 0, SEEK_SET);
-
-    if (!(_client->sepfwdata = (char *) malloc(_client->sepfwdatasize)))
+    
+    if (!(_client->sepfwdata = (char*)malloc(_client->sepfwdatasize)))
         reterror(-15, "failed to malloc memory for SEP\n");
-
-    size_t freadRet = 0;
+    
+    size_t freadRet=0;
     if ((freadRet = fread(_client->sepfwdata, 1, _client->sepfwdatasize, fsep)) != _client->sepfwdatasize)
-        reterror(-15, "failed to load SEP. size=%zu but fread returned %zu\n", _client->sepfwdatasize, freadRet);
-
+        reterror(-15, "failed to load SEP. size=%zu but fread returned %zu\n",_client->sepfwdatasize,freadRet);
+    
     fclose(fsep);
 }
 
-void futurerestore::setBasebandPath(const char *basebandPath, const char *basebandManifestPath) {
-    if (!(_basebandbuildmanifest = loadPlistFromFile(_basebandbuildmanifestPath = basebandManifestPath)))
-        reterror(-14, "failed to load BasebandManifest");
-
-    int zerr;
-    zip *za = zip_open(basebandPath, 0, &zerr);
-    if (!za) {
-        reterror(-15, "failed to open baseband '%s': %d\n", basebandPath, zerr);
-    }
-    struct zip_stat st{};
-    zip_int64_t entries = zip_get_num_entries(za, 0);
-    for (zip_uint64_t i = 0; i < entries; i++) {
-        zerr = zip_stat_index(za, i, 0, &st);
-        if (zerr == -1 || (zerr = zip_test_file(za, i, st.size, st.crc))) {
-            reterror(-16, "Failed to verify baseband integrity. %d\n", zerr);
-        }
-    }
-    info("Verified baseband integrity.\n");
-
+void futurerestore::setBasebandPath(const char *basebandPath){
+    FILE *fbb = fopen(basebandPath, "rb");
+    if (!fbb)
+        reterror(-15, "failed to read baseband");
     _basebandPath = basebandPath;
-    zip_close(za);
+    fclose(fbb);
 }
 
+/* static methods */
 inline void futurerestore::saveStringToFile(const char *str, const char *path){
     FILE *f = fopen(path, "wb");
     if (!f) reterror(-41,"can't save file at %s\n",path);
@@ -1347,7 +1238,6 @@ char *futurerestore::getNonceFromSCAB(const char* scab, size_t *nonceSize){
     }
     return NULL;
     
-    
 parsebnch:
     nonceOctet++;
     
@@ -1357,10 +1247,8 @@ parsebnch:
         if (nonceSize) *nonceSize = asn1Len(nonceOctet).dataLen;
     }
     
-    
 error:
     return ret;
-    
 }
 
 uint64_t futurerestore::getEcidFromSCAB(const char* scab){
@@ -1385,12 +1273,10 @@ uint64_t futurerestore::getEcidFromSCAB(const char* scab){
         if (*ecidInt == (char)0x81)
             goto parseEcid;
     }
-    reterror(-76, "Error: can't read ecid from SCAB\n");
-    
+    reterror(-76, "Error: can't read ECID from SCAB\n");
     
 parseEcid:
     ecidInt++;
-    
     
     len = asn1Len(ecidInt);
     ecidInt += len.sizeBytes + len.dataLen;
@@ -1428,14 +1314,12 @@ const char *futurerestore::getRamdiskHashFromSCAB(const char* scab, size_t *hash
     }
     return NULL;
     
-    
 parsebnch:
     nonceOctet++;
     
     ret = nonceOctet + asn1Len(nonceOctet).sizeBytes;
     if (hashSize)
         *hashSize = asn1Len(nonceOctet).dataLen;
-    
     
 error:
     return ret;
@@ -1482,7 +1366,6 @@ uint64_t futurerestore::getEcidFromIM4M(const char* im4m){
     ecidInt = (char*)asn1ElementAtIndex(ecid, 1);
     ecidInt++;
     
-   
     len = asn1Len(ecidInt);
     ecidInt += len.sizeBytes;
     while (len.dataLen--) {
@@ -1493,7 +1376,6 @@ uint64_t futurerestore::getEcidFromIM4M(const char* im4m){
 error:
     return ret;
 }
-
 
 char *futurerestore::getNonceFromAPTicket(const char* apticketPath){
     char *ret = NULL;
@@ -1555,45 +1437,4 @@ char *futurerestore::getPathOfElementInManifest(const char *element, const char 
     reterror(-31, "could not get %s path\n",element);
 noerror:
     return pathStr;
-}
-
-
-static int zip_test_file(zip_t *za, zip_uint64_t idx, zip_uint64_t size, zip_uint32_t crc) {
-    zip_file_t *zf;
-    char buf[8192];
-    zip_uint64_t nsize;
-    zip_int64_t n;
-    zip_uint32_t ncrc;
-
-    if ((zf = zip_fopen_index(za, idx, 0)) == NULL) {
-        fprintf(stderr, "cannot open file %" PRIu64 " in archive: %s\n", idx, zip_strerror(za));
-        return -1;
-    }
-
-    ncrc = (zip_uint32_t) crc32(0, NULL, 0);
-    nsize = 0;
-
-    while ((n = zip_fread(zf, buf, sizeof(buf))) > 0) {
-        nsize += (zip_uint64_t) n;
-        ncrc = (zip_uint32_t) crc32(ncrc, (const Bytef *) buf, (unsigned int) n);
-    }
-
-    if (n < 0) {
-        fprintf(stderr, "error reading file %" PRIu64 " in archive: %s\n", idx, zip_file_strerror(zf));
-        zip_fclose(zf);
-        return -1;
-    }
-
-    zip_fclose(zf);
-
-    if (nsize != size) {
-        fprintf(stderr, "file %" PRIu64 ": unexpected length %" PRId64 " (should be %" PRId64 ")\n", idx, nsize, size);
-        return -2;
-    }
-    if (ncrc != crc) {
-        fprintf(stderr, "file %" PRIu64 ": unexpected length %x (should be %x)\n", idx, ncrc, crc);
-        return -2;
-    }
-
-    return 0;
 }

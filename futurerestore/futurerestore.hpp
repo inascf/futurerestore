@@ -71,7 +71,6 @@ class futurerestore {
     //methods
     void enterPwnRecovery(plist_t build_identity, std::string bootargs = "");
     
-    
 public:
     futurerestore(bool isUpdateInstall = false, bool isPwnDfu = false);
     bool init();
@@ -94,11 +93,11 @@ public:
     char *getLatestFirmwareUrl();
     void loadLatestBaseband();
     void loadLatestSep();
-    void loadSepFromIpsw(const char *ipswPath);
-    void loadBasebandFromIpsw(const char *ipswPath);
 
-    void loadSep(const char *sepPath, const char *sepManifestPath);
-    void setBasebandPath(const char *basebandPath, const char *basebandManifestPath);
+    void setSepManifestPath(const char *sepManifestPath);
+    void setBasebandManifestPath(const char *basebandManifestPath);
+    void loadSep(const char *sepPath);
+    void setBasebandPath(const char *basebandPath);
     bool isUpdateInstall(){return _isUpdateInstall;};
 
     plist_t sepManifest(){return _sepbuildmanifest;};
@@ -123,10 +122,6 @@ public:
     static plist_t loadPlistFromFile(const char *path);
     static void saveStringToFile(const char *str, const char *path);
     static char *getPathOfElementInManifest(const char *element, const char *manifeststr, struct idevicerestore_client_t* client, int isUpdateInstall);
-
 };
-
-
-
 
 #endif /* futurerestore_hpp */

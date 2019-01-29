@@ -12,8 +12,8 @@
 #define error(a ...) printf("[Error] %s: ",__func__),printf(a)
 #define warning(a ...) printf("[Warning] %s: ",__func__),printf(a)
 
-#define VERSION_COMMIT_COUNT "88"
-#define VERSION_COMMIT_SHA "e7820b4a6fe13dcf0ba2f9eeea735df2a9ffc134"
+#define VERSION_COMMIT_COUNT "98"
+#define VERSION_COMMIT_SHA "a170ca8bfa01fcab783a246a0b5489bebef168eb"
 
 
 #endif /* all_h */
