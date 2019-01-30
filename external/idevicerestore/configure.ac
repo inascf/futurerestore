@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.64)
-AC_INIT([idevicerestore], [1.0], [https://github.com/libimobiledevice/idevicerestore/issues],, [http://libimobiledevice.org])
+AC_INIT([futurerestore], [1.0], [https://github.com/s0uthwest/futurerestore/issues])
 
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip])
@@ -21,6 +21,7 @@ LIBPLIST_VERSION=1.12
 LIBZIP_VERSION=0.8
 LIBCURL_VERSION=7.0
 OPENSSL_VERSION=0.9.8
+LIBUSBMUXD_VERSION=1.0
 
 AC_SUBST(LIBIRECOVERY_VERSION)
 AC_SUBST(LIBIMOBILEDEVICE_VERSION)
@@ -28,6 +29,7 @@ AC_SUBST(LIBPLIST_VERSION)
 AC_SUBST(LIBZIP_VERSION)
 AC_SUBST(LIBCURL_VERSION)
 AC_SUBST(OPENSSL_VERSION)
+AC_SUBST(LIBUSBMUXD_VERSION)
 
 # Checks for programs.
 AC_PROG_CC
@@ -42,6 +44,7 @@ PKG_CHECK_MODULES(libplist, libplist >= $LIBPLIST_VERSION)
 PKG_CHECK_MODULES(libzip, libzip >= $LIBZIP_VERSION)
 PKG_CHECK_MODULES(libcurl, libcurl >= $LIBCURL_VERSION)
 PKG_CHECK_MODULES(openssl, openssl >= $OPENSSL_VERSION)
+PKG_CHECK_MODULES(libusbmuxd, libusbmuxd >= LIBUSBMUXD_VERSION)
 
 GLOBAL_CFLAGS=""
 AC_LDADD=""
